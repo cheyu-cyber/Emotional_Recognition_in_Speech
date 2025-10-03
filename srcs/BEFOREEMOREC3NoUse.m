@@ -1,0 +1,89 @@
+clear, clc, close all
+voice=audioread('forward.wav');
+x=voice;
+x=x';
+x=x(1,:);
+x=x';
+y1=audioread('forward.wav');
+y1=y1';
+y1=y1(1,:);
+y1=y1';
+z1=xcorr(x,y1);
+m1=max(z1);
+L1=length(z1);
+t1=-((L1-1)/2):1:((L1-1)/2);
+t1=t1';
+%subplot(3,2,1);
+figure
+plot(t1,z1);
+y2=audioread('back.wav');
+y2=y2';
+y2=y2(1,:);
+y2=y2';
+z2=xcorr(x,y2);
+m2=max(z2);
+L2=length(z2);
+t2=-((L2-1)/2):1:((L2-1)/2);
+t2=t2';
+%subplot(3,2,2);
+figure
+plot(t2,z2);
+y3=audioread('left.wav');
+y3=y3';
+y3=y3(1,:);
+y3=y3';
+z3=xcorr(x,y3);
+m3=max(z3);
+L3=length(z3);
+t3=-((L3-1)/2):1:((L3-1)/2);
+t3=t3';
+%subplot(3,2,3);
+figure
+plot(t3,z3);
+y4=audioread('right.wav');
+y4=y4';
+y4=y4(1,:);
+y4=y4';
+z4=xcorr(x,y4);
+m4=max(z4);
+L4=length(z4);
+t4=-((L4-1)/2):1:((L4-1)/2);
+t4=t4';
+%subplot(3,2,4);
+figure
+plot(t4,z4);
+y5=audioread('stop.wav');
+y5=y5';
+y5=y5(1,:);
+y5=y5';
+z5=xcorr(x,y5);
+m5=max(z5);
+L5=length(z5);
+t5=-((L5-1)/2):1:((L5-1)/2);
+t5=t5';
+%subplot(3,2,5);
+figure
+plot(t5,z5);
+m6=50;
+a=[m1 m2 m3 m4 m5];%, m6];
+m=max(a);
+h=audioread('allow.wav');
+if m<=m1
+    soundsc(audioread('forward.wav'),44100)
+        soundsc(h,44100)
+elseif m<=m2
+    soundsc(audioread('back.wav'),44100)
+        soundsc(h,44100)
+elseif m<=m3
+    soundsc(audioread('left.wav'),44100)
+        soundsc(h,44100)
+elseif m<=m4
+    soundsc(audioread('right.wav'),44100)
+        soundsc(h,44100)
+elseif m<m5
+    soundsc(audioread('stop.wav'),44100)
+        soundsc(h,44100)
+else
+   soundsc(audioread('denied.wav'),44100)
+   
+end
