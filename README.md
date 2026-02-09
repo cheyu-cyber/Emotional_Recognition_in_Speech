@@ -2,7 +2,7 @@
 NCU Capstone
 
 ## Clean demo (audio analysis + cepstrum + HMM)
-The cleaned, runnable demo lives in [srcs/clean](srcs/clean).
+The cleaned, runnable demo lives in [srcs/core](srcs/core).
 
 ### Quick start (MATLAB)
 1) Add the folder to your path:
