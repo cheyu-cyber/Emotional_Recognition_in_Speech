@@ -67,8 +67,10 @@ for i = 1:numel(classes)
     % [A{i}, B{i}] = hmmtrain(symbolSeqs, A0, B0, 'Maxiterations', opts.maxIter, 'Tolerance', 1e-4);
     A0 = normalize_rows(rand(opts.numStates));
     B0 = normalize_rows(rand(opts.numStates, opts.codebookSize));
+    % [A{i}, B{i}] = hmmtrain(symbolSeqs, A0, B0, 'Maxiterations', opts.maxIter, ...
+    %     'Tolerance', 1e-4, 'Pseudocounts', 1e-3);
     [A{i}, B{i}] = hmmtrain(symbolSeqs, A0, B0, 'Maxiterations', opts.maxIter, ...
-        'Tolerance', 1e-4, 'Pseudocounts', 1e-3);
+        'Tolerance', 1e-4);
     A{i} = sanitize_hmm(A{i});
     B{i} = sanitize_hmm(B{i});
 end
