@@ -29,13 +29,20 @@ for i = 1:numel(classes)
     for f = 1:numel(files)
         [x, fs] = esr_load_audio(files{f});
         [cm, ~, ~, ~] = esr_mfcc(x, fs);
+        % if isempty(cm)
+        %     continue;
+        % end
         if isempty(cm)
             continue;
         end
         dims = min(opts.featureDims, size(cm, 2));
         feats = cm(:, 1:dims);
-        seqs.(classes{i}){end+1} = feats; %#ok<AGROW>
-        allFeatures = [allFeatures; feats]; %#ok<AGROW>
+        % seqs.(classes{i}){end+1} = feats; %#ok<AGROW>
+        % allFeatures = [allFeatures; feats]; %#ok<AGROW>
+        if size(feats, 1) >= opts.numStates
+            seqs.(classes{i}){end+1} = feats; %#ok<AGROW>
+            allFeatures = [allFeatures; feats]; %#ok<AGROW>
+        end
     end
 end
 if isempty(allFeatures)
@@ -55,9 +62,15 @@ for i = 1:numel(classes)
         symbols = esr_quantize_features(classSeqs{s}, codebook);
         symbolSeqs{s} = symbols;
     end
+    % A0 = normalize_rows(rand(opts.numStates));
+    % B0 = normalize_rows(rand(opts.numStates, opts.codebookSize));
+    % [A{i}, B{i}] = hmmtrain(symbolSeqs, A0, B0, 'Maxiterations', opts.maxIter, 'Tolerance', 1e-4);
     A0 = normalize_rows(rand(opts.numStates));
     B0 = normalize_rows(rand(opts.numStates, opts.codebookSize));
-    [A{i}, B{i}] = hmmtrain(symbolSeqs, A0, B0, 'Maxiterations', opts.maxIter, 'Tolerance', 1e-4);
+    [A{i}, B{i}] = hmmtrain(symbolSeqs, A0, B0, 'Maxiterations', opts.maxIter, ...
+        'Tolerance', 1e-4, 'Pseudocounts', 1e-3);
+    A{i} = sanitize_hmm(A{i});
+    B{i} = sanitize_hmm(B{i});
 end
 model.classes = classes;
 model.codebook = codebook;
@@ -70,4 +83,10 @@ function M = normalize_rows(M)
 rowSum = sum(M, 2);
 rowSum(rowSum == 0) = 1;
 M = M ./ rowSum;
+end
+
+function M = sanitize_hmm(M)
+M(~isfinite(M)) = 0;
+M = M + eps;
+M = normalize_rows(M);
 end

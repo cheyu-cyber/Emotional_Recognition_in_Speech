@@ -34,7 +34,8 @@ if isempty(energy)
     delym = [];
     return;
 end
-mask = energy >= 0.1 * max(energy);
+% mask = energy >= 0.1 * max(energy);
+mask = energy >= 0.05 * max(energy);
 frames = frames(:, mask);
 if isempty(frames)
     cm = [];
