@@ -1,40 +1,63 @@
-# Autosave files
-*.asv
-*.m~
-*.autosave
-*.slx.r*
-*.mdl.r*
+# ------------------------------
+# Project outputs and datasets
+# ------------------------------
+data/
+logs/
+plots/
+results/
 
-# Derived content-obscured files
-*.p
+# ------------------------------
+# Python bytecode and caches
+# ------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
 
-# Compiled MEX files
-*.mex*
+# ------------------------------
+# Build, packaging, and metadata
+# ------------------------------
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
 
-# Packaged app and toolbox files
-*.mlappinstall
-*.mltbx
+# ------------------------------
+# Virtual environments
+# ------------------------------
+.venv/
+venv/
+env/
+ENV/
 
-# Deployable archives
-*.ctf
+# ------------------------------
+# Tooling caches and test artifacts
+# ------------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
 
-# Generated helpsearch folders
-helpsearch*/
+# ------------------------------
+# Jupyter
+# ------------------------------
+.ipynb_checkpoints/
 
-# Code generation folders
-slprj/
-sccprj/
-codegen/
+# ------------------------------
+# Environment and local config
+# ------------------------------
+.env
+.env.*
+*.local
 
-# Cache files
-*.slxc
-
-# Cloud based storage dotfile
-.MATLABDriveTag
-
-# buildtool cache folder
-.buildtool/
-
-# SimBiology backup files
-*.sbproj.backup
-*.sbproj.bak
+# ------------------------------
+# Editor and OS files
+# ------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

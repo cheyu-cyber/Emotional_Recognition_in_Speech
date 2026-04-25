@@ -1,0 +1,90 @@
+{
+  "dataset": {
+    "path": "data/RAVDESS",
+    "sample_rate": 16000,
+    "emotions": [
+      "neutral",
+      "happy",
+      "sad",
+      "angry",
+      "fearful"
+    ],
+    "max_files_per_class": null,
+    "test_size": 0.2,
+    "speaker_independent": true,
+    "random_seed": 42,
+    "trim_silence": true,
+    "trim_top_db": 30
+  },
+  "framing": {
+    "frame_length_ms": 25,
+    "hop_length_ms": 10,
+    "preemphasis": 0.97,
+    "window": "hamming"
+  },
+  "mfcc": {
+    "n_mfcc": 12,
+    "n_mels": 26,
+    "n_fft": 512,
+    "fmin": 0,
+    "fmax": null,
+    "include_deltas": true,
+    "include_delta_deltas": true,
+    "include_log_energy": true,
+    "cmvn": true
+  },
+  "lpc": {
+    "order": 12,
+    "include_error_energy": true
+  },
+  "lpcc": {
+    "lpc_order": 12,
+    "n_cepstral": 12,
+    "include_deltas": true
+  },
+  "prosodic": {
+    "pitch_fmin": 60,
+    "pitch_fmax": 400,
+    "voicing_threshold": 0.3
+  },
+  "vq": {
+    "n_clusters": 16,
+    "random_seed": 42,
+    "n_init": 10
+  },
+  "hmm": {
+    "n_states": 3,
+    "n_iter": 50,
+    "tol": 0.01,
+    "random_seed": 42
+  },
+  "gmm_hmm": {
+    "n_states": 3,
+    "n_mix": 4,
+    "n_iter": 30,
+    "tol": 0.0001,
+    "var_floor": 0.001,
+    "weight_floor": 0.001,
+    "random_seed": 42
+  },
+  "experiments": {
+    "feature_sets": [
+      "mfcc",
+      "lpc",
+      "lpcc",
+      "combined"
+    ],
+    "classifiers": [
+      "discrete_hmm",
+      "gmm_hmm"
+    ],
+    "n_repeats": 1
+  },
+  "output": {
+    "log_dir": "logs",
+    "results_dir": "results",
+    "plots_dir": "plots",
+    "cache_features": true,
+    "cache_dir": "cache"
+  }
+}
