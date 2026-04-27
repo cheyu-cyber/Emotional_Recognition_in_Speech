@@ -1,13 +1,16 @@
-"""dataset.py — load RAVDESS or a generic folder-of-WAVs dataset.
+"""dataset.py — load RAVDESS, CREMA-D, or a generic folder-of-WAVs dataset.
 
 RAVDESS filename convention: 03-01-06-01-02-01-12.wav
 positions 1..7 = modality, vocal_channel, emotion, intensity, statement,
 repetition, actor (odd=male, even=female).
 
-If the folder doesn't look like RAVDESS, we fall back to a generic loader
-that treats every immediate sub-directory as a class (folder name = label).
-This means it also works for the existing project dataset where files are
-named e.g. femaleSad_1.wav: just rename/move them into per-emotion folders.
+CREMA-D filename convention: 1001_DFA_ANG_XX.wav
+fields = ActorID(4-digit), Sentence, Emotion(ANG/DIS/FEA/HAP/NEU/SAD), Level.
+
+Each file is dispatched to the matching parser; anything that matches
+neither falls back to a folder-per-class loader (parent dir = label),
+which also works for the legacy `femaleSad_1.wav`-style layout once files
+are grouped into per-emotion folders.
 """
 from __future__ import annotations
 
@@ -34,6 +37,16 @@ RAVDESS_EMOTION_MAP = {
 }
 
 
+CREMAD_EMOTION_MAP = {
+    "ANG": "angry",
+    "DIS": "disgust",
+    "FEA": "fearful",
+    "HAP": "happy",
+    "NEU": "neutral",
+    "SAD": "sad",
+}
+
+
 @dataclass
 class AudioItem:
     path: str
@@ -56,6 +69,25 @@ def parse_ravdess_filename(path: str) -> Optional[Dict[str, str]]:
         "emotion": RAVDESS_EMOTION_MAP.get(parts[2], "unknown"),
         "actor": str(actor),
         "gender": "female" if actor % 2 == 0 else "male",
+    }
+
+
+def parse_cremad_filename(path: str) -> Optional[Dict[str, str]]:
+    name = Path(path).stem
+    parts = name.split("_")
+    if len(parts) != 4:
+        return None
+    actor, _sentence, emo, level = parts
+    if not (actor.isdigit() and len(actor) == 4):
+        return None
+    if emo not in CREMAD_EMOTION_MAP:
+        return None
+    # Prefix the speaker id so RAVDESS actor "1" and CREMA-D actor "1001"
+    # never collide if both datasets live under the same root.
+    return {
+        "emotion": CREMAD_EMOTION_MAP[emo],
+        "actor": "cremad_" + actor,
+        "intensity": level,
     }
 
 
@@ -85,31 +117,35 @@ def load_dataset(
         )
 
     items: List[AudioItem] = []
-    is_ravdess = parse_ravdess_filename(files[0]) is not None
-
-    if logger:
-        logger.info(
-            "Found %d audio files under %s; format=%s",
-            len(files),
-            path,
-            "RAVDESS" if is_ravdess else "folder-per-class",
-        )
+    fmt_counts: Dict[str, int] = {"ravdess": 0, "cremad": 0, "folder": 0}
 
     for f in files:
-        if is_ravdess:
-            meta = parse_ravdess_filename(f)
-            if meta is None:
-                continue
-            label = meta["emotion"]
-            speaker = meta["actor"]
+        meta = parse_ravdess_filename(f)
+        if meta is not None:
+            label, speaker = meta["emotion"], meta["actor"]
+            fmt_counts["ravdess"] += 1
         else:
-            # Folder-per-class: parent directory is the label
-            label = Path(f).parent.name.lower()
-            speaker = Path(f).stem  # treat each file as its own speaker by default
+            meta = parse_cremad_filename(f)
+            if meta is not None:
+                label, speaker = meta["emotion"], meta["actor"]
+                fmt_counts["cremad"] += 1
+            else:
+                # Folder-per-class: parent directory is the label
+                label = Path(f).parent.name.lower()
+                speaker = Path(f).stem
+                fmt_counts["folder"] += 1
 
         if emotions is not None and label not in emotions:
             continue
         items.append(AudioItem(path=f, label=label, speaker=speaker))
+
+    if logger:
+        logger.info(
+            "Found %d audio files under %s; per-format counts: %s",
+            len(files),
+            path,
+            {k: v for k, v in fmt_counts.items() if v > 0},
+        )
 
     if max_files_per_class is not None:
         rng = random.Random(random_seed)

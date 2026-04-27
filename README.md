@@ -31,6 +31,18 @@ and a **combined** feature representation under a shared 3-state,
 directly under it (any sub-folder structure is fine, the loader walks
 recursively).
 
+**Adding CREMA-D** (optional, second corpus): clone
+<https://github.com/CheyneyComputerScience/CREMA-D> and copy the
+`AudioWAV/` directory into `data/CREMA-D/` — the loader auto-detects
+the `1001_DFA_ANG_XX.wav` pattern (ActorID, sentence, emotion,
+intensity), so no config changes are needed beyond pointing
+`dataset.path` at `data/CREMA-D/` (or a parent that contains both
+corpora — files are dispatched per-filename and speaker IDs from the
+two datasets are kept disjoint). CREMA-D shares 6 emotions with
+RAVDESS (angry, disgust, fearful, happy, neutral, sad); RAVDESS-only
+classes (`calm`, `surprised`) are filtered out automatically when
+they're not in `dataset.emotions`.
+
 ## 2. Quickstart
 
 ```bash
