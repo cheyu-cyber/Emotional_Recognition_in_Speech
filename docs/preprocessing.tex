@@ -1,0 +1,255 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=0.6in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{placeins}
+
+\doublespacing
+
+\begin{document}
+
+\subsection*{EC519 Project Emotion Recognition in Speech \hfill \normalfont\normalsize Che Yu}
+
+Our goal is to recognise the emotion expressed in a short speech recording.
+We compare three classical signal-processing feature representations for
+speech, MFCC, LPC, and LPCC, all fed into the same hidden Markov model (HMM)
+classifier so that the comparison isolates the effect of the feature choice
+rather than the model. We used RAVDESS speech dataset sampled at $f_s = 16$\,kHz, 
+classified into five emotions \emph{neutral, happy, sad, angry, fearful}, with a
+speaker-independent train/test split so the model never sees a test speaker
+during training.
+
+\subsection*{General Pipeline}
+
+Every feature set follows the same flow: the raw waveform is cut and windowed
+into short overlapping frames, each frame is converted into a feature vector. 
+The frame features are then turned into a sequence of discrete symbols, and an 
+HMM is trained to predict the five emotion classes and model those sequences. 
+Our pipeline is shown below:
+\begin{equation*}
+    \text{audio} \;\longrightarrow\;
+    \text{framing + windowing} \;\longrightarrow\;
+    \text{feature extraction} \;\longrightarrow\;
+    \text{VQ symbols} \;\longrightarrow\;
+    \text{HMM per class}.
+\end{equation*}
+\paragraph{(a) Preprocessing: framing and windowing.}
+Speech is non-stationary on the scale of phonemes (50--200\,ms), but
+\emph{quasi-stationary} inside short windows of about 25\,ms. Since we are 
+not modeling phonetic detail, we can use this stationarity assumption to
+slice the waveform into frames of $L_w = 25$\,ms with a hop of
+$L_h = 10$\,ms (so consecutive frames overlap by 60\%). At 16\,kHz this
+gives frames of $N = 400$ samples spaced by $H = 160$ samples. Then each frame 
+is multiplied by a Hamming window
+\(
+    w[n] = 0.54 - 0.46\cos\!\bigl(2\pi n/(N-1)\bigr),
+\)
+which tapers the edges so the spectrum is not contaminated by the abrupt
+discontinuities at the frame boundaries.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\linewidth]{../plots/hamming_window.png}
+    \caption*{Hamming window ($N = 400$ samples = 25\,ms at 16\,kHz).}
+\end{figure}
+\paragraph{(b) Feature extraction.}
+Each extractor turns a windowed frame into a fixed-length feature vector.
+The three feature families capture the speech signal in different ways:
+
+\emph{MFCC (Mel-Frequency Cepstral Coefficients).} A perceptually motivated
+representation of the short-time spectral envelope. The frame is sent through
+the following pipeline:
+\begin{equation*}
+    s_t^{w}[n] \;\longrightarrow\;
+    |\mathrm{FFT}|^{2} \;\longrightarrow\;
+    \text{mel filterbank} \;\longrightarrow\;
+    \log \;\longrightarrow\;
+    \mathrm{DCT}\text{-II} \;\longrightarrow\;
+    \mathbf{c}_t.
+\end{equation*}
+The power spectrum is summed through a bank of triangular filters spaced on
+the mel scale (denser at low frequencies, where speech information lives),
+the log of each band energy is taken, and an orthonormal DCT-II compresses
+the 26 log-band energies down to the first 12 cepstral coefficients which
+describe the smooth shape of the vocal-tract spectrum (as shown in Lecture 19). 
+We additionally append the log frame energy and stack first- and second-order time
+differences ($\Delta$ and $\Delta\Delta$) so each frame also encodes how
+the spectrum is changing locally, giving a 39-D vector.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\linewidth]{../plots/mel_filterbank.png}
+    \caption*{The 26-filter triangular mel filterbank applied to the power spectrum.}
+\end{figure}
+
+\emph{LPC (Linear Predictive Coding).} Each frame is modelled as the output
+of an all-pole filter that captures the resonances of the vocal tract:
+\begin{equation*}
+    H(z) = \frac{G}{A(z)},
+    \qquad
+    A(z) = 1 + \sum_{k=1}^{p} a_k\, z^{-k}.
+\end{equation*}
+The coefficients $a_1,\dots,a_p$ are obtained from the frame's
+autocorrelation via the Levinson--Durbin recursion. We use $p = 12$ and
+append the log of the prediction-error energy as a loudness/voicing cue,
+giving a 13-D vector.
+
+\emph{LPCC (LP Cepstral Coefficients).} The cepstrum derived analytically
+from the LPC coefficients we've obtained, with $\alpha_k = -a_k$:
+\begin{equation*}
+    c_m = \alpha_m + \sum_{k=1}^{m-1} \frac{k}{m}\, c_k\, \alpha_{m-k},
+    \qquad 1 \le m \le p.
+\end{equation*}
+LPCCs retain qualities of the all-pole model with the better numerical
+and statistical properties of cepstral features. It also deconvolves the 
+vocal-tract response from the excitation, so it may be more robust to variations 
+in pitch and preserve perceptual characteristics of speech (as in Lecture 16\&17). 
+We keep $c_1,\dots,c_{12}$ and append first-order time differences, giving a 24-D vector.
+
+\paragraph{(c) HMM classification.}
+For each feature set we first fit a vector quantiser ($k$-means with
+$V = 16$ centroids) on the stacked training frames and use it to encode
+every utterance into a sequence of discrete symbols
+$O = (o_1,\dots,o_T)$, $o_t \in \{1,\dots,V\}$. We then train one discrete
+HMM per emotion class $c$, $\lambda_c = (\pi^c, A^c, B^c)$, with $K = 3$
+hidden states using Baum--Welch (EM) algorithm (as in Lecture 19\&20). 
+At test time the predicted emotion is the class whose model assigns the highest
+likelihood to the symbol sequence:
+\(
+    \hat{y} = \arg\max_{c} \log P(O \mid \lambda_c).
+\)
+
+
+\subsection*{Results}
+
+Test accuracies of our different feature sets are shown below (five classes,
+chance $= 20\%$):
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Feature set & Frame dim $D$ & Test accuracy \\
+\midrule
+LPC          & 13 & \textbf{0.367} \\
+MFCC         & 39 & 0.356 \\
+LPCC         & 24 & 0.278 \\
+Combined     & 65 & 0.250 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+LPC and MFCC are essentially tied at the top; LPCC and the combined set
+trail. The combined set's relative weakness is consistent with the
+mismatch between its 65-D feature space and a 16-symbol codebook: too few
+symbols to preserve class-discriminative structure in a much larger space.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.65\linewidth]{../plots/accuracy_comparison.png}
+    \caption*{Test accuracy by feature set.}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../plots/mfcc/confusion_matrix.png}
+        \\\small MFCC
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../plots/lpc/confusion_matrix.png}
+        \\\small LPC
+    \end{minipage}
+
+    \vspace{0.6em}
+
+    \begin{minipage}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../plots/lpcc/confusion_matrix.png}
+        \\\small LPCC
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../plots/combined/confusion_matrix.png}
+        \\\small Combined
+    \end{minipage}
+    \caption*{Per-feature confusion matrices (normalised by true class).}
+\end{figure}
+
+\FloatBarrier
+
+\subsection*{Future Work}
+
+This project utilizes the whole EC519 lecture pipeline and I think it is 
+an interesting project since LLM (Whisper) have not gain the ability to 
+understand the emotion of the speech. However, the results are not very good, 
+and there is a lot of room for improvement.
+Several directions follow naturally from the results above. One of the problems that
+the combined feature set under-performs because a $V = 16$ codebook is too
+coarse for a 65-D space; sweeping $V \in \{32, 64, 128\}$ might address this. 
+Another aspect is that, throughout this project, I am intrigued by the potential of output vectorzied 
+classification rather than probability like HMM does. Vectorized classification can be
+modeled into 6 dimensional space for basic emotion (happy, sad, angry, fearful, suprise, disgust).
+And that we can get rid of neutral, calm, and other non-basic emotion, which are more difficult to classify.
+Third, our feature menu is purely spectral / source-filter;
+adding \emph{prosodic} cues (pitch contour, energy envelope, speaking rate)
+is well-motivated for emotion (e.g.\ anger and joy expand pitch range while
+sadness compresses it). Finally, RAVDESS is
+a small, acted, studio-clean dataset, so the absolute accuracies are likely
+optimistic. Evaluating on a more naturalistic dataset such as
+CREMA-D would test how much of the signal is genuine emotion.
+
+\subsection*{References}
+
+\begin{thebibliography}{9}
+
+\bibitem{rao2013emotion}
+K.~S. Rao and S.~G. Koolagudi,
+\emph{Emotion Recognition using Speech Features}.
+SpringerBriefs in Speech Technology. New York: Springer, 2013.
+
+\bibitem{livingstone2018ravdess}
+S.~R. Livingstone and F.~A. Russo,
+``The Ryerson Audio-Visual Database of Emotional Speech and Song (RAVDESS):
+A dynamic, multimodal set of facial and vocal expressions in North American English,''
+\emph{PLoS ONE}, vol.~13, no.~5, p.~e0196391, 2018.
+
+\bibitem{davis1980mfcc}
+S.~B. Davis and P.~Mermelstein,
+``Comparison of parametric representations for monosyllabic word recognition
+in continuously spoken sentences,''
+\emph{IEEE Trans. Acoust., Speech, Signal Process.},
+vol.~28, no.~4, pp.~357--366, Aug.\ 1980.
+
+\bibitem{makhoul1975lpc}
+J.~Makhoul,
+``Linear prediction: A tutorial review,''
+\emph{Proc.\ IEEE}, vol.~63, no.~4, pp.~561--580, Apr.\ 1975.
+
+\bibitem{rabiner1989hmm}
+L.~R. Rabiner,
+``A tutorial on hidden Markov models and selected applications in speech recognition,''
+\emph{Proc.\ IEEE}, vol.~77, no.~2, pp.~257--286, Feb.\ 1989.
+
+\bibitem{elayadi2011survey}
+M.~El~Ayadi, M.~S. Kamel, and F.~Karray,
+``Survey on speech emotion recognition: Features, classification schemes, and databases,''
+\emph{Pattern Recognition}, vol.~44, no.~3, pp.~572--587, Mar.\ 2011.
+
+\bibitem{cao2014cremad}
+H.~Cao, D.~G. Cooper, M.~K. Keutmann, R.~C. Gur, A.~Nenkova, and R.~Verma,
+``CREMA-D: Crowd-sourced emotional multimodal actors dataset,''
+\emph{IEEE Trans.\ Affective Computing}, vol.~5, no.~4, pp.~377--390, Oct.--Dec.\ 2014.
+
+\end{thebibliography}
+
+\subsection*{Code}
+
+The full implementation is open-source and available at:
+\begin{center}
+    \texttt{https://github.com/cheyu-cyber/Emotional\_Recognition\_in\_Speech}\\[6pt]
+    \includegraphics[width=0.18\linewidth]{qrcode.png}
+\end{center}
+
+\end{document}
